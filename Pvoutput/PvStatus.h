@@ -1,11 +1,13 @@
 typedef struct {
     char date[9];
-    char time[5];
-    int energyGeneration[288];
+    char time[6];
+    int energyGeneration;
+    float energyEfficiency;
+    int instantaneousPower;
+    int averagePower;
+    float normalisedOutput;
     int energyConsumption;
-    int powerGeneration;
     int powerConsumption;
-    float efficiency;
     float temperature;
     float voltage;
 } PvStatus;
