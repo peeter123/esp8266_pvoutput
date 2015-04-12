@@ -22,7 +22,7 @@ void handle_apikey(void){
 }
 
 void handle_refresh(void){
-  
+  updateStats = 1;
 }
 
 void handle_sysid(void){

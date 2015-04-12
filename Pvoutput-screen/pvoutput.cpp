@@ -86,7 +86,6 @@ bool PVOutputClass::getStats(PvStats *out)
 {
   String host = "pvoutput.org";
   WiFiClient client;
-  client.stop();
   if (!client.connect(host.c_str(), 80)) {
     Serial.println("connection failed");
     return false;
@@ -129,12 +128,12 @@ bool PVOutputClass::getStats(PvStats *out)
   }
   
   // Swapping
-  for(int i=0;i<out->len;i++) {
+  for(int i=0;i<out->len/2;i++) {
     int swp = out->instantaneousPower[i];
-    out->instantaneousPower[i] = out->instantaneousPower[out->len-i];
-    out->instantaneousPower[out->len-i] = swp;
+    out->instantaneousPower[i] = out->instantaneousPower[out->len-i-1];
+    out->instantaneousPower[out->len-i-1] = swp;
   }
-  
+  client.stop();
   return true;
 }
 

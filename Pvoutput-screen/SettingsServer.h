@@ -11,5 +11,6 @@
 extern void startSettingsServer(void);
 extern void settingsServerTask(void);
 extern const char* pvhostname;
+extern bool updateStats;
 
 #endif //SETTINGSSERVER_H
