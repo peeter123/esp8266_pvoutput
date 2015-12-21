@@ -23,6 +23,7 @@ void handle_apikey(void){
 
 void handle_refresh(void){
   updateStats = 1;
+  server.send(200, "text/plain", "Refreshing now");
 }
 
 void handle_sysid(void){

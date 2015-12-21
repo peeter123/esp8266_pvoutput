@@ -44,6 +44,11 @@ bool getApiKey(char * apiKey)
    }
  }
  while((i++)<APIKEY_LENGTH);
+ if(i==APIKEY_LENGTH)
+ {
+  apiKey[i-1] = '\0';
+ return false;
+ }
  return true;
 }
 
@@ -87,5 +92,10 @@ bool getSystemID(char * systemId)
    }
  }
  while((i++) < SYSTEMID_LENGTH);
+  if(i==SYSTEMID_LENGTH)
+ {
+  systemId[i-1] = '\0';
+  return false;
+ }
  return true;
 }
