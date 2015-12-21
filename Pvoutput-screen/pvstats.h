@@ -2,9 +2,10 @@
 
 typedef struct {
   char date[8];
-  char time[6];
-  int instantaneousPower[MAX_STATS];
+  char startTime[6];
+  char endTime[6];
   int len;
+  int instantaneousPower[MAX_STATS];
 } PvStats;
 
 

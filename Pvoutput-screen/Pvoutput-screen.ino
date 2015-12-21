@@ -29,7 +29,7 @@
 #define SYSTEMNAME_TEXTSIZE 2
 #define SYSTEMNAME_DIVIDER_Y (SYSTEMNAME_START_Y+SYSTEMNAME_TEXTSIZE*8+SPACE_BETWEEN_STUFF*2)
 #define TOTALLYGENERATED_DIVIDER_Y (CURRENTWATT_START_Y+2*8+2*8+4*8+SPACE_BETWEEN_STUFF*4)
-
+#define TIME_TEXTSIZE 2
 
 extern "C" {
   #include "user_interface.h"
@@ -43,18 +43,19 @@ void tftSetup(void);
 void setupPvOutput(void);
 void pvStatsTask(void);
 void screenTask(void);
-void scaleForGraph(void);
-void scaleForGraph(const int*,uint8_t*,int);
-void tftDrawGraph(uint16_t,uint16_t,uint16_t,uint16_t,uint16_t,uint8_t*);
+int scaleForGraph(uint16_t graphWidth, uint16_t graphHeight,const int*,uint8_t*,int);
+void tftDrawGraph(uint16_t,uint16_t,uint16_t,uint16_t,uint16_t,uint8_t*,uint16_t); //returns maximum y (from old data)
 void tftDrawGraphTimeLegend(uint16_t, uint16_t, uint16_t,uint16_t, uint16_t, uint8_t, uint8_t, uint16_t, uint16_t);
-
+void fakeDataForGraph(int samples);
 
 uint8_t graphLine[GRAPHWIDTH];
 uint8_t graphLine_old[GRAPHWIDTH];
 uint8_t hasFirstData=0;
+int graphLineOldLength=0;
 
-const char* ssid = "WouterAP";
-const char* password = "zeltenistgeil";
+
+const char* ssid = "DieBie";
+const char* password = "delammevleugel";
 const float pi = 3.14;
 Ticker screenTaskTicker;
 Ticker pvTaskTicker;
@@ -158,27 +159,32 @@ void setupPvOutput(void)
 
 //--------------------------------------------
 
-
-
 void plotLines()
 {
   Serial.print("stat Amount:");
   Serial.println(pvStats.len);
-  tftDrawGraph(GRAPHBORDER,GRAPH_Y_START,GRAPHBORDER+GRAPHWIDTH,GRAPHHEIGHT+GRAPH_Y_START,ILI9341_BLACK,graphLine);
-  scaleForGraph(pvStats.instantaneousPower,graphLine,pvStats.len);
-  tftDrawGraph(GRAPHBORDER,GRAPH_Y_START,GRAPHBORDER+GRAPHWIDTH,GRAPHHEIGHT+GRAPH_Y_START,ILI9341_GREEN,graphLine);  
-//  memcpy(graphLine_old,graphLine,sizeof(graphLine_old));
+  if (graphLineOldLength>0)
+  {
+    tftDrawGraph(GRAPHBORDER,GRAPH_Y_START,GRAPHBORDER+GRAPHWIDTH,GRAPHHEIGHT+GRAPH_Y_START,ILI9341_BLACK,graphLine_old,graphLineOldLength);
+  }
+  scaleForGraph(GRAPHHEIGHT,GRAPHWIDTH,pvStats.instantaneousPower,graphLine,pvStats.len);
+  tftDrawGraph(GRAPHBORDER,GRAPH_Y_START,GRAPHBORDER+GRAPHWIDTH,GRAPHHEIGHT+GRAPH_Y_START,ILI9341_GREEN,graphLine,pvStats.len);  
+  graphLineOldLength=pvStats.len;
+  memcpy(graphLine_old,graphLine,graphLineOldLength);
+
 } 
 
 
 
-void FakeDataForGraph(void)
+void fakeDataForGraph(int samples)
 {
   int i;
+  pvStats.len=random(0,samples);
   for(i=0;i<REQUEST_SIZE;i++)
   {
     pvStats.instantaneousPower[i] = random(0,20000);
   } 
+  
 }
 
 void screenTask(void)
@@ -187,6 +193,13 @@ void screenTask(void)
   //tft.fillRect(GRAPHBORDER,GRAPH_Y_START,GRAPHWIDTH,200-GRAPH_Y_START,ILI9341_BLACK);
   plotLines();
   char shortSystemName[9];
+
+  tft.setTextSize(TIME_TEXTSIZE);
+  tft.setCursor(2,SCREENHEIGTH-TIME_TEXTSIZE*8);
+  tft.print(pvStats.startTime);
+
+  tft.setCursor(TEXT_START_X-5*11-5,SCREENHEIGTH-TIME_TEXTSIZE*8);
+  tft.print(pvStats.endTime);
   
   tft.setCursor(TEXT_START_X+12,SYSTEMNAME_START_Y);
   tft.setTextSize(SYSTEMNAME_TEXTSIZE);
@@ -220,7 +233,7 @@ void screenTask(void)
   {
 
      tft.print(pvStatus.energyGeneration/1000);
-     if (pvStatus.energyGeneration<10000)
+     if (pvStatus.energyGeneration<100000)
      {
         tft.print(".");
         tft.print((pvStatus.energyGeneration%1000)/100); 
@@ -260,14 +273,19 @@ void tftSetup(void){
 }  
 
  
-void tftDrawGraph(uint16_t x0,uint16_t y0,uint16_t x1,uint16_t y1,uint16_t aColor,uint8_t data[])
+void tftDrawGraph(uint16_t x0,uint16_t y0,uint16_t x1,uint16_t y1,uint16_t aColor,uint8_t data[],uint16_t datasize)
 {
    int x;
    int xlength=x1-x0-1;
-   for (x=0;x<(xlength);x++)
+   if (datasize<xlength)
    {
-     tft.drawLine(x+x0, y1-data[x], x+1+x0, y1-data[x+1], aColor);   
-   }
+     for (x=0;x<(datasize-1);x++)
+     {
+      Serial.println(x);
+      Serial.println(map(x,0,datasize,0,xlength));
+      tft.drawLine(x0+map(x,0,datasize,0,xlength),y1-data[x],x0+map(x+1,0,datasize,0,xlength),y1-data[x+1],aColor);
+     }
+  }
 }
 
 void tftDrawGraphTimeLegend(uint16_t x0, uint16_t y0, uint16_t x1,uint16_t y1, uint16_t aColor, uint8_t minhour, uint8_t maxhour, uint16_t minY, uint16_t maxY)
@@ -291,26 +309,43 @@ void tftDrawGraphTimeLegend(uint16_t x0, uint16_t y0, uint16_t x1,uint16_t y1, u
   }
   text = "Time";
   tft.setCursor(x1-5*11,y1+6);
-  tft.print(text);
+//  tft.print(text);
 }
 
-void scaleForGraph(const int* data_in,uint8_t* data_out,int aLength)
+int scaleForGraph(uint16_t graphHeight,uint16_t graphWidth, const int* data_in,uint8_t* data_out,int aLength)
 {
-    int maxy=0;
+    int maxy=data_in[0];
+    int miny=data_in[0];
     int i;
     for(i=0;i<aLength;i++)
     {
      if(data_in[i]>maxy)
      {
-       maxy=data_in[i];
+        maxy=data_in[i];
+     }
+     if(data_in[i]<miny)
+     {
+        miny=data_in[i];
      }
     }
-    if (aLength>GRAPHWIDTH)
+    
+    Serial.print("maxy: ");
+    Serial.println(maxy);
+    Serial.print("miny: ");
+    Serial.println(miny);
+    
+    if (aLength>graphWidth)
     {
-      for(i=0;i<GRAPHWIDTH;i++)
+      aLength=graphWidth;
+    }
+      for(i=0;i<aLength;i++)
       {
-        data_out[i] = map(data_in[i+(aLength-GRAPHWIDTH)],0,maxy,0,GRAPHHEIGHT);      
+        data_out[i] = map(data_in[i],0,maxy,0,graphHeight); 
+        Serial.print(data_out[i]);
+        Serial.print(",");             
       }
+      Serial.println("");
+/*
     }
     else
     {
@@ -322,6 +357,9 @@ void scaleForGraph(const int* data_in,uint8_t* data_out,int aLength)
       {
         data_out[i] = 0;
       }
-    }    
+    }   
+*/
+    
+    return maxy; 
 }
 

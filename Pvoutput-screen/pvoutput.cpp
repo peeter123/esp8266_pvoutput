@@ -177,7 +177,7 @@ bool PVOutputClass::getStatus(PvStatus *out)
 
 bool PVOutputClass::getStats(PvStats *out,int size)
 {
-  String path = "/service/r2/getstatus.jsp?sid=" + _systemId + "&key=" + _apiKey + "&h=1&limit="+size;
+  String path = "/service/r2/getstatus.jsp?sid=" + _systemId + "&key=" + _apiKey + "&asc=1&h=1&limit="+size;
   Serial.println(path);
   WiFiClient client;
   if(!request(client,path))
@@ -191,12 +191,12 @@ bool PVOutputClass::getStats(PvStats *out,int size)
   while(readPvStatusHistory(client, &status)) {
     if (out->len == 0) {
       memcpy(out->date, status.date, sizeof(out->date));
-      memcpy(out->time, status.time, sizeof(out->time));
+      memcpy(out->startTime, status.time, sizeof(out->startTime));
     }
     out->instantaneousPower[out->len] = status.instantaneousPower;
     out->len++;
   }
-
+  memcpy(out->endTime,status.time,sizeof(out->endTime));
   
   // Swapping
   //for(int i=0;i<out->len/2;i++) {
